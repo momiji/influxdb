@@ -220,7 +220,7 @@ def run_tests(race, parallel, timeout, no_vet):
         test_command += " -timeout {}".format(timeout)
     test_command += " ./..."
     logging.info("Running tests...")
-    output = run(test_command)
+    output = run(test_command, printOutput=True)
     logging.debug("Test output:\n{}".format(output.encode('ascii', 'ignore')))
     return True
 
@@ -228,25 +228,35 @@ def run_tests(race, parallel, timeout, no_vet):
 #### All InfluxDB-specific content above this line
 ################
 
-def run(command, allow_failure=False, shell=False):
-    """Run shell command (convenience wrapper around subprocess).
+def run(command, allow_failure=False, shell=False, printOutput=False):
+    """
+    Run shell command (convenience wrapper around subprocess).
+
+    If printOutput is True then the output is sent to STDOUT and not returned
     """
     out = None
     logging.debug("{}".format(command))
     try:
-        if shell:
-            out = subprocess.check_output(command, stderr=subprocess.STDOUT, shell=shell)
-        else:
-            out = subprocess.check_output(command.split(), stderr=subprocess.STDOUT)
-        out = out.decode('utf-8').strip()
-        # logging.debug("Command output: {}".format(out))
-    except subprocess.CalledProcessError as e:
-        if allow_failure:
-            logging.warn("Command '{}' failed with error: {}".format(command, e.output))
-            return None
-        else:
-            logging.error("Command '{}' failed with error: {}".format(command, e.output))
-            sys.exit(1)
+        cmd = command
+        if not shell:
+            cmd = command.split()
+
+        stdout = subprocess.PIPE
+        stderr = subprocess.STDOUT
+        if printOutput:
+            stdout = None
+
+        p = subprocess.Popen(cmd, shell=shell, stdout=stdout, stderr=stderr)
+        out, _ = p.communicate()
+        if out is not None:
+            out = out.decode('utf-8').strip()
+        if p.returncode != 0:
+            if allow_failure:
+                logging.warn(u"Command '{}' failed with error: {}".format(command, out))
+                return None
+            else:
+                logging.error(u"Command '{}' failed with error: {}".format(command, out))
+                sys.exit(1)
     except OSError as e:
         if allow_failure:
             logging.warn("Command '{}' failed with error: {}".format(command, e))
