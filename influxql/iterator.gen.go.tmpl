@@ -2,7 +2,6 @@ package influxql
 
 import (
 	"container/heap"
-	"errors"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -548,10 +547,6 @@ func (itr *{{$k.name}}LimitIterator) Next() (*{{$k.Name}}Point, error) {
 
 		// Read next point if we're beyond the limit.
 		if itr.opt.Limit > 0 && (itr.n-itr.opt.Offset) > itr.opt.Limit {
-			// If there's no interval, no groups, and a single source then simply exit.
-			if itr.opt.Interval.IsZero() && len(itr.opt.Dimensions) == 0 && len(itr.opt.Sources) == 1 {
-				return nil, nil
-			}
 			continue
 		}
 
@@ -868,7 +863,7 @@ func (itr *{{$k.name}}AuxIterator) Next() (*{{$k.Name}}Point, error) {
 }
 func (itr *{{$k.name}}AuxIterator) Iterator(name string, typ DataType) Iterator    { return itr.fields.iterator(name, typ) }
 
-func (itr *{{$k.name}}AuxIterator) CreateIterator(opt IteratorOptions) (Iterator, error) {
+func (itr *{{$k.name}}AuxIterator) CreateIterator(source *Measurement, opt IteratorOptions) (Iterator, error) {
 	expr := opt.Expr
 	if expr == nil {
 		panic("unable to create an iterator with no expression from an aux iterator")
@@ -880,14 +875,6 @@ func (itr *{{$k.name}}AuxIterator) CreateIterator(opt IteratorOptions) (Iterator
 	default:
 		panic(fmt.Sprintf("invalid expression type for an aux iterator: %T", expr))
 	}
-}
-
-func (itr *{{$k.name}}AuxIterator) FieldDimensions(sources Sources) (fields map[string]DataType, dimensions map[string]struct{}, err error) {
-	return nil, nil, errors.New("not implemented")
-}
-
-func (itr *{{$k.name}}AuxIterator) ExpandSources(sources Sources) (Sources, error) {
-	return nil, errors.New("not implemented")
 }
 
 func (itr *{{.name}}AuxIterator) stream() {

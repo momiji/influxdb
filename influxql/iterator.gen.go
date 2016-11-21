@@ -9,7 +9,6 @@ package influxql
 import (
 	"container/heap"
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"io"
 	"sort"
@@ -550,10 +549,6 @@ func (itr *floatLimitIterator) Next() (*FloatPoint, error) {
 
 		// Read next point if we're beyond the limit.
 		if itr.opt.Limit > 0 && (itr.n-itr.opt.Offset) > itr.opt.Limit {
-			// If there's no interval, no groups, and a single source then simply exit.
-			if itr.opt.Interval.IsZero() && len(itr.opt.Dimensions) == 0 && len(itr.opt.Sources) == 1 {
-				return nil, nil
-			}
 			continue
 		}
 
@@ -869,7 +864,7 @@ func (itr *floatAuxIterator) Iterator(name string, typ DataType) Iterator {
 	return itr.fields.iterator(name, typ)
 }
 
-func (itr *floatAuxIterator) CreateIterator(opt IteratorOptions) (Iterator, error) {
+func (itr *floatAuxIterator) CreateIterator(source *Measurement, opt IteratorOptions) (Iterator, error) {
 	expr := opt.Expr
 	if expr == nil {
 		panic("unable to create an iterator with no expression from an aux iterator")
@@ -881,14 +876,6 @@ func (itr *floatAuxIterator) CreateIterator(opt IteratorOptions) (Iterator, erro
 	default:
 		panic(fmt.Sprintf("invalid expression type for an aux iterator: %T", expr))
 	}
-}
-
-func (itr *floatAuxIterator) FieldDimensions(sources Sources) (fields map[string]DataType, dimensions map[string]struct{}, err error) {
-	return nil, nil, errors.New("not implemented")
-}
-
-func (itr *floatAuxIterator) ExpandSources(sources Sources) (Sources, error) {
-	return nil, errors.New("not implemented")
 }
 
 func (itr *floatAuxIterator) stream() {
@@ -2912,10 +2899,6 @@ func (itr *integerLimitIterator) Next() (*IntegerPoint, error) {
 
 		// Read next point if we're beyond the limit.
 		if itr.opt.Limit > 0 && (itr.n-itr.opt.Offset) > itr.opt.Limit {
-			// If there's no interval, no groups, and a single source then simply exit.
-			if itr.opt.Interval.IsZero() && len(itr.opt.Dimensions) == 0 && len(itr.opt.Sources) == 1 {
-				return nil, nil
-			}
 			continue
 		}
 
@@ -3231,7 +3214,7 @@ func (itr *integerAuxIterator) Iterator(name string, typ DataType) Iterator {
 	return itr.fields.iterator(name, typ)
 }
 
-func (itr *integerAuxIterator) CreateIterator(opt IteratorOptions) (Iterator, error) {
+func (itr *integerAuxIterator) CreateIterator(source *Measurement, opt IteratorOptions) (Iterator, error) {
 	expr := opt.Expr
 	if expr == nil {
 		panic("unable to create an iterator with no expression from an aux iterator")
@@ -3243,14 +3226,6 @@ func (itr *integerAuxIterator) CreateIterator(opt IteratorOptions) (Iterator, er
 	default:
 		panic(fmt.Sprintf("invalid expression type for an aux iterator: %T", expr))
 	}
-}
-
-func (itr *integerAuxIterator) FieldDimensions(sources Sources) (fields map[string]DataType, dimensions map[string]struct{}, err error) {
-	return nil, nil, errors.New("not implemented")
-}
-
-func (itr *integerAuxIterator) ExpandSources(sources Sources) (Sources, error) {
-	return nil, errors.New("not implemented")
 }
 
 func (itr *integerAuxIterator) stream() {
@@ -5271,10 +5246,6 @@ func (itr *stringLimitIterator) Next() (*StringPoint, error) {
 
 		// Read next point if we're beyond the limit.
 		if itr.opt.Limit > 0 && (itr.n-itr.opt.Offset) > itr.opt.Limit {
-			// If there's no interval, no groups, and a single source then simply exit.
-			if itr.opt.Interval.IsZero() && len(itr.opt.Dimensions) == 0 && len(itr.opt.Sources) == 1 {
-				return nil, nil
-			}
 			continue
 		}
 
@@ -5575,7 +5546,7 @@ func (itr *stringAuxIterator) Iterator(name string, typ DataType) Iterator {
 	return itr.fields.iterator(name, typ)
 }
 
-func (itr *stringAuxIterator) CreateIterator(opt IteratorOptions) (Iterator, error) {
+func (itr *stringAuxIterator) CreateIterator(source *Measurement, opt IteratorOptions) (Iterator, error) {
 	expr := opt.Expr
 	if expr == nil {
 		panic("unable to create an iterator with no expression from an aux iterator")
@@ -5587,14 +5558,6 @@ func (itr *stringAuxIterator) CreateIterator(opt IteratorOptions) (Iterator, err
 	default:
 		panic(fmt.Sprintf("invalid expression type for an aux iterator: %T", expr))
 	}
-}
-
-func (itr *stringAuxIterator) FieldDimensions(sources Sources) (fields map[string]DataType, dimensions map[string]struct{}, err error) {
-	return nil, nil, errors.New("not implemented")
-}
-
-func (itr *stringAuxIterator) ExpandSources(sources Sources) (Sources, error) {
-	return nil, errors.New("not implemented")
 }
 
 func (itr *stringAuxIterator) stream() {
@@ -7615,10 +7578,6 @@ func (itr *booleanLimitIterator) Next() (*BooleanPoint, error) {
 
 		// Read next point if we're beyond the limit.
 		if itr.opt.Limit > 0 && (itr.n-itr.opt.Offset) > itr.opt.Limit {
-			// If there's no interval, no groups, and a single source then simply exit.
-			if itr.opt.Interval.IsZero() && len(itr.opt.Dimensions) == 0 && len(itr.opt.Sources) == 1 {
-				return nil, nil
-			}
 			continue
 		}
 
@@ -7919,7 +7878,7 @@ func (itr *booleanAuxIterator) Iterator(name string, typ DataType) Iterator {
 	return itr.fields.iterator(name, typ)
 }
 
-func (itr *booleanAuxIterator) CreateIterator(opt IteratorOptions) (Iterator, error) {
+func (itr *booleanAuxIterator) CreateIterator(source *Measurement, opt IteratorOptions) (Iterator, error) {
 	expr := opt.Expr
 	if expr == nil {
 		panic("unable to create an iterator with no expression from an aux iterator")
@@ -7931,14 +7890,6 @@ func (itr *booleanAuxIterator) CreateIterator(opt IteratorOptions) (Iterator, er
 	default:
 		panic(fmt.Sprintf("invalid expression type for an aux iterator: %T", expr))
 	}
-}
-
-func (itr *booleanAuxIterator) FieldDimensions(sources Sources) (fields map[string]DataType, dimensions map[string]struct{}, err error) {
-	return nil, nil, errors.New("not implemented")
-}
-
-func (itr *booleanAuxIterator) ExpandSources(sources Sources) (Sources, error) {
-	return nil, errors.New("not implemented")
 }
 
 func (itr *booleanAuxIterator) stream() {

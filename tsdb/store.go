@@ -276,6 +276,11 @@ func (s *Store) Shards(ids []uint64) []*Shard {
 	return a
 }
 
+// ShardGroup returns a ShardGroup with a list of shards by id.
+func (s *Store) ShardGroup(ids []uint64) ShardGroup {
+	return Shards(s.Shards(ids))
+}
+
 // ShardN returns the number of shards in the store.
 func (s *Store) ShardN() int {
 	s.mu.RLock()
@@ -381,18 +386,6 @@ func (s *Store) DeleteShard(shardID uint64) error {
 	s.mu.Unlock()
 
 	return nil
-}
-
-// ShardIteratorCreator returns an iterator creator for a shard.
-func (s *Store) ShardIteratorCreator(id uint64, opt *influxql.SelectOptions) influxql.IteratorCreator {
-	sh := s.Shard(id)
-	if sh == nil {
-		return nil
-	}
-	return &shardIteratorCreator{
-		sh:         sh,
-		maxSeriesN: opt.MaxSeriesN,
-	}
 }
 
 // DeleteDatabase will close all shards associated with a database and remove the directory and files from disk.
@@ -773,40 +766,50 @@ func (s *Store) deleteSeries(database string, seriesKeys []string, min, max int6
 
 // ExpandSources expands sources against all local shards.
 func (s *Store) ExpandSources(sources influxql.Sources) (influxql.Sources, error) {
-	return s.IteratorCreators().ExpandSources(sources)
-}
+	shards := func() []*Shard {
+		s.mu.RLock()
+		defer s.mu.RUnlock()
 
-// IteratorCreators returns a set of all local shards as iterator creators.
-func (s *Store) IteratorCreators() influxql.IteratorCreators {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+		shards := make([]*Shard, 0, len(s.shards))
+		for _, sh := range s.shards {
+			shards = append(shards, sh)
+		}
+		return shards
+	}()
 
-	a := make(influxql.IteratorCreators, 0, len(s.shards))
-	for _, sh := range s.shards {
-		a = append(a, sh)
-	}
-	return a
-}
+	// Use a map as a set to prevent duplicates.
+	set := map[string]influxql.Source{}
 
-func (s *Store) IteratorCreator(shards []uint64, opt *influxql.SelectOptions) (influxql.IteratorCreator, error) {
-	// Generate iterators for each node.
-	ics := make([]influxql.IteratorCreator, 0)
-	if err := func() error {
-		for _, id := range shards {
-			ic := s.ShardIteratorCreator(id, opt)
-			if ic == nil {
-				continue
-			}
-			ics = append(ics, ic)
+	// Iterate through every shard and expand the sources.
+	for _, sh := range shards {
+		expanded, err := sh.ExpandSources(sources)
+		if err != nil {
+			return nil, err
 		}
 
-		return nil
-	}(); err != nil {
-		influxql.IteratorCreators(ics).Close()
-		return nil, err
+		for _, src := range expanded {
+			switch src := src.(type) {
+			case *influxql.Measurement:
+				set[src.String()] = src
+			default:
+				return nil, fmt.Errorf("Store.ExpandSources: unsupported source type: %T", src)
+			}
+		}
 	}
 
-	return influxql.IteratorCreators(ics), nil
+	// Convert set to sorted slice.
+	names := make([]string, 0, len(set))
+	for name := range set {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	// Convert set to a list of Sources.
+	sorted := make([]influxql.Source, 0, len(set))
+	for _, name := range names {
+		sorted = append(sorted, set[name])
+	}
+	return sorted, nil
 }
 
 // WriteToShard writes a list of points to a shard identified by its ID.
